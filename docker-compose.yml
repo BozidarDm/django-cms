@@ -1,0 +1,49 @@
+version: "3.3"
+
+services:
+  django-cms:
+    build: .
+    container_name: django-cms
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:80
+    expose:
+      - 80
+    environment:
+      VIRTUAL_HOST: cms.rokbas.ru
+      LETSENCRYPT_HOST: cms.rokbas.ru
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - django-cms
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+
+  nginx-proxy-acme:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - acme:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=anton.fomi@ya.ru
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+
+volumes:
+  conf:
+  vhost:
+  html:
+  dhparam:
+  certs:
+  acme:
